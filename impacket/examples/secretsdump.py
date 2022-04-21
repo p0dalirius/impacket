@@ -1589,6 +1589,46 @@ class LSASecrets(OfflineRegistry):
                     LOG.warning("Don't forget to remove sensitive content before sending the data in a Github issue.")
                     secret = json.dumps(strDecoded, indent=4)
 
+        elif re.match('^L\$_RASCONNECTIONCREDENTIALS#([0-9]+)$', upperName) is not None:
+            # Decode stored RasConnectionCredentials structure
+            # Example: L$_RasConnectionCredentials#0
+            id = re.search('^L\$_RASCONNECTIONCREDENTIALS#([0-9]+)$', upperName).groups()
+            try:
+                raw_structure = secretItem.decode('utf-16le')
+                raw_structure = raw_structure.split('\x00')
+                print(raw_structure)
+            except:
+                pass
+            else:
+                secret = "RasConnectionCredentials: "
+
+        elif re.match('^RASDIALPARAMS!(S-[0-9]-[0-9]-([0-9]+)-([0-9]+)-([0-9]+)-([0-9]+)-([0-9]+))#([0-9]+)$', upperName) is not None:
+            # Decode stored RasDialParams structure
+            # https://docs.microsoft.com/en-us/previous-versions/windows/desktop/legacy/aa377238(v=vs.85)
+            # Example: RasDialParams!S-1-5-21-334719049-2235157316-3859345596-12141#0
+            #
+            sid, _, _, _, _, _, id = re.search('^RASDIALPARAMS!(S-[0-9]-[0-9]-([0-9]+)-([0-9]+)-([0-9]+)-([0-9]+)-([0-9]+))#([0-9]+)$', upperName).groups()
+            try:
+                raw_structure = secretItem.decode('utf-16le')
+                raw_structure = raw_structure.split('\x00', 9)
+
+                data = {
+                    # "EntryName": raw_structure[0],
+                    # "PhoneNumber": raw_structure[1],
+                    # "CallbackNumber": raw_structure[2],
+                    "UserName": raw_structure[5],
+                    "Password": raw_structure[6],
+                    # "Domain": raw_structure[5],
+                    # "SubEntry": raw_structure[6],
+                    # "CallbackId": raw_structure[7],
+                    # "IfIndex": raw_structure[8]
+                }
+                output = '\n'.join([" | %s: %s" % (name, value) for name, value in sorted(data.items(), key=lambda x:x[0])])
+            except:
+                pass
+            else:
+                secret = 'RasDialParams for user %s: \n%s' % (sid, output)
+
         if secret != '':
             printableSecret = secret
             self.__secretItems.append(secret)
